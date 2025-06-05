@@ -168,8 +168,8 @@ def handle_user_prompt() -> None:
             "result": result
         }
     )["answer"]
-    st.session_state["bot_ans"] = answer[8:]
-
+    st.session_state["bot_ans"] = answer
+    
 
 def main() -> None:
     # Load environment variables
