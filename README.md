@@ -12,7 +12,6 @@
 <b>Add your API Key to file .env</b>
 <pre>
     GOOGLE_API_KEY=...
-    <br/>
     OPENAI_API_KEY=...
 </pre>
 
