@@ -125,6 +125,7 @@ def handle_connect_db() -> None:
         )
         st.session_state["db"] = db
 
+        st.balloons()
         logger.success("Connect to database succesfully")
         st.session_state["db_connect_status_msg"] = "Connected Successfully"
     except Exception as e:
@@ -143,6 +144,7 @@ def handle_load_model() -> None:
         st.session_state["llm"] = llm
         st.session_state["model_status_msg"] = f"✅ Load model {st.session_state.model_name} successfully!"
 
+        st.snow()
         logger.success(f"Load model {st.session_state.model_name} succesfully!")
     except Exception as e:
         st.session_state["model_status_msg"] = "❌ Submit model failed. Retry!"
