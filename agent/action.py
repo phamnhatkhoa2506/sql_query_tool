@@ -2,6 +2,9 @@ import streamlit as st
 from typing import Dict
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.tools.sql_database.tool import QuerySQLDatabaseTool
+from langgraph.graph import START, StateGraph
+from langgraph.checkpoint.memory import MemorySaver
+
 from schemas.state import State
 from schemas.query_output import QueryOutput
 
@@ -72,5 +75,19 @@ def generate_answer(state: State):
         f'SQL Result: {state["result"]}'
     )
     response = st.session_state["llm"].invoke(prompt)
-    
+
     return {"answer": response.content}
+
+
+# Create graph builder for saving mode
+graph_builder = StateGraph(State).add_sequence(
+    [write_query, execute_query, generate_answer]
+)
+graph_builder.add_edge(START, "write_query")
+memory = MemorySaver()
+graph = graph_builder.compile(
+    checkpointer=memory, 
+    interrupt_before=["execute_query"]
+)
+
+config = {"configurable": {"thread_id": "1"}}

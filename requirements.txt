@@ -7,3 +7,4 @@ python-dotenv
 pydantic
 python-dotenv
 loguru
+psycopg2-binary

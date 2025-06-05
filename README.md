@@ -1,5 +1,9 @@
 ### A Simple App for SQL Query
 
+![Alt text](images/app.png)
+
+<h1>Steps</h1>
+
 <b>Create virtual environment</b>
 <pre>python -m venv venv</pre>
 
@@ -15,4 +19,13 @@ GOOGLE_API_KEY=...
 OPENAI_API_KEY=...
 </pre>
 
-![Alt text](images/app.png)
+<h2>Query Chat Page</h2>
+<p>Load a LLm model according to your API Key</p>
+<p>Connect to your SQL Database</p>
+<p>Query Chat have two mode: normal and memory saving</p>
+
+<p><b>Normal mode</b>: the chatbot can not save the previous query</p>
+<img src="./images/chatbot_step.png />
+
+<p><b>Memory saving mode</b>: the chatbot can save the previous query</p>
+<img src="./images/saving_mode.png />

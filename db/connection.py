@@ -32,7 +32,9 @@ def connect_to_db(
             f"sqlite:///{db_name}"
         )
     elif dbms == "postgressql":
-        pass
+        return SQLDatabase.from_uri(
+            f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db_name}"
+        )
 
 
         

@@ -1,5 +1,4 @@
 import streamlit as st
-import json
 from loguru import logger
 from dotenv import load_dotenv
 
@@ -9,8 +8,13 @@ sys.path.append(r"E:\Python\sql_query_tool")
 from models.llms import load_llm
 from db.port import DEFAULT_PORT
 from db.connection import connect_to_db
-from agent.action import write_query, execute_query, generate_answer
-
+from agent.action import (
+    write_query, 
+    execute_query, 
+    generate_answer, 
+    graph,
+    config
+)
 
 def setup_page() -> None:
     st.set_page_config(
@@ -19,12 +23,14 @@ def setup_page() -> None:
         layout="centered"
     )
 
+    st.session_state["is_memory_saving"] = False
+
 
 def setup_sidebar() -> None:
     with st.sidebar:
         model_selectbox = st.selectbox(
             "Choose model",
-            ["gemini-2.0-flash"]
+            ["gemini-2.0-flash", "gpt-3.5-turbo", "gpt-4o"]
         )
         st.session_state.model_name = model_selectbox
 
@@ -84,9 +90,11 @@ def setup_main() -> None:
 
     st.divider()
 
+    # Saving mode
+    st.session_state["is_memory_saving"] = st.toggle("Saving")
+ 
     # Prompt
-    user_prompt = st.text_input("Prompt", placeholder="Enter your prompt")
-    st.session_state["user_prompt"] = user_prompt
+    st.session_state["user_prompt"] = st.chat_input(placeholder="Enter your prompt", on_submit=handle_user_prompt)
     st.button("Ask", icon="🤖", on_click=handle_user_prompt)
 
     # SQL Query answer text areas
@@ -96,12 +104,12 @@ def setup_main() -> None:
         value=st.session_state["sql_query"] if "sql_query" in st.session_state else ""
     )
     
-    # Dataframe
-    if "df" in st.session_state:
-        st.dataframe(st.session_state["df"])
+    # Confirm execute modal
+    if st.session_state.get("confirm_execute_modal", False):
+        confirm_execute()
 
     # Bot answer text areas
-    bot_ans = st.text_area(
+    st.text_area(
         "Bot answer", 
         key="2",
         value=st.session_state["bot_ans"] if "bot_ans" in st.session_state else ""
@@ -110,6 +118,7 @@ def setup_main() -> None:
 
 def handle_connect_db() -> None:
     if "llm" not in st.session_state:
+        error_model_loading()
         st.session_state["model_status_msg"] = "Model hasn't loaded yet"
         st.session_state["db_connect_status_msg"] = "Model hasn't loaded yet"
         return 
@@ -150,26 +159,86 @@ def handle_load_model() -> None:
         st.session_state["model_status_msg"] = "❌ Submit model failed. Retry!"
         logger.error("Submit model failed. Retry! " + str(e))
 
+        error_modal("Submit model failed. Retry! " + str(e))
+
 
 def handle_user_prompt() -> None:
-    query = write_query(
-        {"question": st.session_state["user_prompt"]}
-    )["query"]
-    st.session_state["sql_query"] = query
+    if "llm" not in st.session_state:
+        error_model_loading()
+        return
+    if "db" not in st.session_state:
+        error_db_connection()
+        return
 
-    result = execute_query(
-        {"query": query}
-    )["result"]
+    if not st.session_state["is_memory_saving"]:
+        query = write_query(
+            {"question": st.session_state["user_prompt"]}
+        )["query"]
+        st.session_state["sql_query"] = query
 
-    answer = generate_answer(
-        {
-            "question": st.session_state["user_prompt"],
-            "query": query,
-            "result": result
-        }
-    )["answer"]
-    st.session_state["bot_ans"] = answer
+        result = execute_query(
+            {"query": query}
+        )["result"]
+
+        answer = generate_answer(
+            {
+                "question": st.session_state["user_prompt"],
+                "query": query,
+                "result": result
+            }
+        )["answer"]
+        st.session_state["bot_ans"] = answer
+    else:
+        for step in graph.stream(
+            {"question": st.session_state["user_prompt"]},
+            config,
+            stream_mode="updates",
+        ):
+            if 'write_query' in step:
+                st.session_state["sql_query"] = step['write_query']['query']
+
+        st.session_state["confirm_execute_modal"] = True
+
+
+def handle_confirm_execute():
+    for step in graph.stream(None, config, stream_mode="updates"):
+        if 'generate_answer' in step:
+            st.session_state["bot_ans"] = step['generate_answer']['answer']
+ 
+    st.session_state["confirm_execute_modal"] = False 
+
+
+def handle_cancel_execute():
+    st.session_state["confirm_execute_modal"] = False 
+
+
+@st.dialog("Confirm execute")
+def confirm_execute() -> None:
+    st.write("Continue to execute query?")
+
+    left_col, right_col = st.columns(2)
+    with left_col:
+        if st.button("Yes", on_click=handle_confirm_execute):
+            st.rerun()
     
+    with right_col:
+        if st.button("No", on_click=handle_cancel_execute):
+            st.rerun()
+    
+
+@st.dialog('No database')
+def error_db_connection() -> None:
+    st.write("You have to connect to a databse")
+
+
+@st.dialog('No model')
+def error_model_loading() -> None:
+    st.write("You have to save change a model")
+
+@st.dialog('Error')
+def error_modal(msg: str) -> None:
+    st.write(msg)
+
 
 def main() -> None:
     # Load environment variables
