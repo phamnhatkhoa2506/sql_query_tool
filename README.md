@@ -25,7 +25,8 @@ OPENAI_API_KEY=...
 <p>Query Chat have two mode: normal and memory saving</p>
 
 <p><b>Normal mode</b>: the chatbot can not save the previous query</p>
-<img src="./images/chatbot_step.png />
+![Alt text](images/chatbot_step.png)
 
 <p><b>Memory saving mode</b>: the chatbot can save the previous query</p>
-<img src="./images/saving_mode.png />
+
+![Alt text](images/saving_mode.png)
