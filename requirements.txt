@@ -1,6 +1,9 @@
 langchain-core
 langchain-community
+langchain-google-genai
 pymysql
 streamlit
 python-dotenv
 pydantic
+python-dotenv
+loguru
