@@ -1,7 +1,20 @@
+import re
+import ast
 import streamlit as st
+from langgraph.prebuilt import create_react_agent
+from langchain.agents.agent_toolkits import create_retriever_tool
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
 from langchain_core.messages import HumanMessage
-from langgraph.prebuilt import create_react_agent
+from langchain_core.vectorstores import InMemoryVectorStore
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
+
+def query_as_list(db: any, query: str):
+    res = db.run(query)
+    res = [el for sub in ast.literal_eval(res) for el in sub if el]
+    res = [re.sub(r"\b\d+\b", "", string).strip() for string in res]
+    return list(set(res))
+
 
 def get_agent_executor() -> any:
     toolkit = SQLDatabaseToolkit(
@@ -37,6 +50,32 @@ def get_agent_executor() -> any:
         top_k=5,
     )
 
-    agent_executor = create_react_agent(st.session_state["llm"], tools, prompt=system_message)
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+
+    vector_store = InMemoryVectorStore(embeddings)
+
+    # _ = vector_store.add_texts(authors + fullnames)
+    retriever = vector_store.as_retriever(search_kwargs={"k": 5})
+    description = (
+        "Use to look up values to filter on. Input is an approximate spelling "
+        "of the proper noun, output is valid proper nouns. Use the noun most "
+        "similar to the search."
+    )
+    retriever_tool = create_retriever_tool(
+        retriever,
+        name="search_proper_nouns",
+        description=description,
+    )
+
+    suffix = (
+        "If you need to filter on a proper noun like a Name, you must ALWAYS first look up "
+        "the filter value using the 'search_proper_nouns' tool! Do not try to "
+        "guess at the proper name - use this function to find similar ones."
+    )
+    system = f"{system_message}\n\n{suffix}"
+
+    tools.append(retriever_tool)
+
+    agent_executor = create_react_agent(st.session_state["llm"], tools, prompt=system)
 
     return agent_executor
